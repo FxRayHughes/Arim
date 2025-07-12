@@ -22,7 +22,6 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-
       - name: URL Encode Password
         run: |
           ENCODED_PASSWORD=$(printf %s "${{ secrets.NEXUS_MAPLEX_PASSWORD }}" | jq -sRr @uri)
@@ -31,10 +30,12 @@ jobs:
       - name: Validate Nexus Credentials
         run: |
           # 仅显示用户名前3个字符保护隐私
-          echo "用户名：${${{ secrets.NEXUS_MAPLEX_USERNAME }}:0:3}..."
+          USERNAME="${{ secrets.NEXUS_MAPLEX_USERNAME }}"
+          echo "用户名：${USERNAME:0:3}..."
           
           # 检查密码长度验证是否设置
-          echo "密码长度：${#secrets.NEXUS_MAPLEX_PASSWORD}"
+          PASSWORD="${{ secrets.NEXUS_MAPLEX_PASSWORD }}"
+          echo "密码长度：${#PASSWORD}"
           
           # 使用curl进行安全的凭据测试
           if curl -u "${{ secrets.NEXUS_MAPLEX_USERNAME }}:${{ secrets.NEXUS_MAPLEX_PASSWORD }}" \
