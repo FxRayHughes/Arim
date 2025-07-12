@@ -4,7 +4,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 plugins {
     java
     `maven-publish`
-    id("io.izzel.taboolib") version "2.0.22"
+    id("io.izzel.taboolib") version "2.0.23"
     kotlin("jvm") version "1.8.22"
 }
 
