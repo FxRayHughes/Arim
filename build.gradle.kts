@@ -82,6 +82,10 @@ publishing {
             credentials {
                 username = project.findProperty("taboolibUsername")?.toString() ?: System.getenv("NEXUS_MAPLEX_USERNAME")
                 password = project.findProperty("taboolibPassword")?.toString() ?: System.getenv("NEXUS_MAPLEX_PASSWORD")
+
+                // 添加调试日志
+                println(">>>> Nexus Username: ${username}")
+                println(">>>> Nexus Password: ${password}")
             }
             authentication {
                 create<BasicAuthentication>("basic")
