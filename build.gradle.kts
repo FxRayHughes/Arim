@@ -80,8 +80,8 @@ publishing {
         maven("https://nexus.maplex.top/repository/maven-releases/") {
             isAllowInsecureProtocol = true
             credentials {
-                username = project.findProperty("NEXUS_MAPLEX_USERNAME")?.toString() ?: System.getenv("NEXUS_MAPLEX_USERNAME")
-                password = project.findProperty("NEXUS_MAPLEX_PASSWORD")?.toString() ?: System.getenv("NEXUS_MAPLEX_PASSWORD")
+                username = project.findProperty("taboolibUsername")?.toString() ?: System.getenv("NEXUS_MAPLEX_USERNAME")
+                password = project.findProperty("taboolibPassword")?.toString() ?: System.getenv("NEXUS_MAPLEX_PASSWORD")
             }
             authentication {
                 create<BasicAuthentication>("basic")
