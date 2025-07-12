@@ -22,30 +22,6 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Debug Secrets (安全显示)
-        run: |
-          echo "🔍 检查 Secrets 配置..."
-          
-          # 检查用户名是否存在
-          if [ -z "${{ secrets.NEXUS_MAPLEX_USERNAME }}" ]; then
-            echo "❌ 错误：NEXUS_MAPLEX_USERNAME 未设置！"
-            echo "请在 GitHub 仓库 Settings -> Secrets and variables -> Actions 中添加"
-            exit 1
-          else
-            USERNAME="${{ secrets.NEXUS_MAPLEX_USERNAME }}"
-            echo "✅ 用户名已设置：${USERNAME:0:3}..."
-          fi
-          
-          # 检查密码是否存在
-          if [ -z "${{ secrets.NEXUS_MAPLEX_PASSWORD }}" ]; then
-            echo "❌ 错误：NEXUS_MAPLEX_PASSWORD 未设置！"
-            echo "请在 GitHub 仓库 Settings -> Secrets and variables -> Actions 中添加"
-            exit 1
-          else
-            PASSWORD="${{ secrets.NEXUS_MAPLEX_PASSWORD }}"
-            echo "✅ 密码已设置，长度：${#PASSWORD}"
-          fi
-
       - name: Test Nexus Connection
         run: |
           echo "🔌 测试 Nexus 连接..."
