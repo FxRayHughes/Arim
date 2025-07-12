@@ -25,7 +25,7 @@ repositories {
     }
 }
 dependencies {
-    taboo("top.maplex.arim:Arim:VERSION") // 替换为最新版本
+    taboo("top.maplex.arim:Arim:1.3.0") // 替换为最新版本
 }
 ```
 
