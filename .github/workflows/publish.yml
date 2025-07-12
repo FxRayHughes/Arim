@@ -32,7 +32,7 @@ jobs:
           
           if [ "$RESPONSE" != "200" ]; then
             echo "❌ 认证失败！请检查："
-            echo "1. Nexus 用户名/密码是否正确"
+            echo "1. Nexus 用户名/密码是否正确 ${{ secrets.NEXUS_MAPLEX_USERNAME }} : ${{ secrets.NEXUS_MAPLEX_PASSWORD }}"
             echo "2. Nexus 账户是否激活"
             echo "3. 账户是否具有 'nx-repository-view-*-*-edit' 权限"
             exit 1
