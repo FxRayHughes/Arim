@@ -22,34 +22,73 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: URL Encode Password
+      - name: Debug Secrets (安全显示)
         run: |
-          ENCODED_PASSWORD=$(printf %s "${{ secrets.NEXUS_MAPLEX_PASSWORD }}" | jq -sRr @uri)
-          echo "ENCODED_PASSWORD=$ENCODED_PASSWORD" >> $GITHUB_ENV
-
-      - name: Validate Nexus Credentials
-        run: |
-          # 仅显示用户名前3个字符保护隐私
-          USERNAME="${{ secrets.NEXUS_MAPLEX_USERNAME }}"
-          echo "用户名：${USERNAME:0:3}..."
+          echo "🔍 检查 Secrets 配置..."
           
-          # 检查密码长度验证是否设置
-          PASSWORD="${{ secrets.NEXUS_MAPLEX_PASSWORD }}"
-          echo "密码长度：${#PASSWORD}"
-          
-          # 使用curl进行安全的凭据测试
-          if curl -u "${{ secrets.NEXUS_MAPLEX_USERNAME }}:${{ secrets.NEXUS_MAPLEX_PASSWORD }}" \
-                 -s -o /dev/null -I -w "%{http_code}" \
-                 "https://nexus.maplex.top/service/metrics/ping" \
-                 | grep -q "200"; then
-            echo "✅ 认证成功"
+          # 检查用户名是否存在
+          if [ -z "${{ secrets.NEXUS_MAPLEX_USERNAME }}" ]; then
+            echo "❌ 错误：NEXUS_MAPLEX_USERNAME 未设置！"
+            echo "请在 GitHub 仓库 Settings -> Secrets and variables -> Actions 中添加"
+            exit 1
           else
-            echo "❌ 认证失败！请检查："
-            echo "1. Nexus用户名是否正确"
-            echo "2. Nexus密码是否包含特殊字符（可能需要URL编码）"
-            echo "3. Nexus账户权限设置"
+            USERNAME="${{ secrets.NEXUS_MAPLEX_USERNAME }}"
+            echo "✅ 用户名已设置：${USERNAME:0:3}..."
+          fi
+          
+          # 检查密码是否存在
+          if [ -z "${{ secrets.NEXUS_MAPLEX_PASSWORD }}" ]; then
+            echo "❌ 错误：NEXUS_MAPLEX_PASSWORD 未设置！"
+            echo "请在 GitHub 仓库 Settings -> Secrets and variables -> Actions 中添加"
+            exit 1
+          else
+            PASSWORD="${{ secrets.NEXUS_MAPLEX_PASSWORD }}"
+            echo "✅ 密码已设置，长度：${#PASSWORD}"
+          fi
+
+      - name: Test Nexus Connection
+        run: |
+          echo "🔌 测试 Nexus 连接..."
+          
+          # 使用 curl 测试认证
+          HTTP_CODE=$(curl -u "${{ secrets.NEXUS_MAPLEX_USERNAME }}:${{ secrets.NEXUS_MAPLEX_PASSWORD }}" \
+                           -s -o /dev/null -w "%{http_code}" \
+                           -I "https://nexus.maplex.top/service/metrics/ping")
+          
+          echo "HTTP 响应码：$HTTP_CODE"
+          
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "✅ Nexus 认证成功！"
+          else
+            echo "❌ Nexus 认证失败！"
+            echo "可能的原因："
+            echo "1. 用户名或密码错误"
+            echo "2. 账户没有足够的权限"
+            echo "3. Nexus 服务器问题"
+          
+            # 测试服务器是否可达
+            echo ""
+            echo "测试服务器连通性..."
+            if curl -s -o /dev/null -I "https://nexus.maplex.top"; then
+              echo "✅ 服务器可达"
+            else
+              echo "❌ 服务器不可达"
+            fi
+          
             exit 1
           fi
 
-      - name: Publish with Gradle
-        run: ./gradlew -PtaboolibUsername=${{ secrets.NEXUS_MAPLEX_USERNAME }} -PtaboolibPassword=${{ secrets.NEXUS_MAPLEX_PASSWORD }} publish
+      - name: Build with Gradle
+        run: |
+          echo "🏗️ 构建项目..."
+          ./gradlew build --info
+
+      - name: Publish to Nexus
+        run: |
+          echo "📦 发布到 Nexus..."
+          ./gradlew publish \
+            -PtaboolibUsername="${{ secrets.NEXUS_MAPLEX_USERNAME }}" \
+            -PtaboolibPassword="${{ secrets.NEXUS_MAPLEX_PASSWORD }}" \
+            --info
+        env:
+          GRADLE_OPTS: "-Xmx2g -Dfile.encoding=UTF-8"
