@@ -1,0 +1,162 @@
+# UIConfigHelper 配置示例文件
+# 此文件展示了 UIConfigHelper 的所有配置选项
+
+# 示例UI配置 - 完整的箱子UI配置
+example_ui:
+  # 布局定义 - 使用字符映射槽位
+  layout:
+    - "AAAAAAAAA"
+    - "ABBBBBBBA"
+    - "ABBBBBBBA"
+    - "ABBBBBBBA"
+    - "ACCCCCNPA"
+    - "AAAAAAAAA"
+
+  # 静态按钮配置 - 在 button 节点下的按钮会被 initMenu() 自动加载
+  button:
+    # 关闭按钮示例
+    close_button:
+      slot: 'C'  # 槽位标识符（对应layout中的字符）
+      material: BARRIER
+      name: "&c关闭菜单"
+      lore:
+        - "&7点击关闭此界面"
+      shiny: false  # 是否发光
+      # 点击事件配置
+      action:
+        left_click: "actionbar '&a菜单已关闭' colored"
+        right_click: "tell '&c右键点击'"
+        shift_left_click: "tell '&eShift+左键'"
+        shift_right_click: "tell '&eShift+右键'"
+        middle_click: "tell '&b中键点击'"
+        other_click: "tell '&7其他点击'"
+
+    # 信息按钮示例
+    info_button:
+      slot: 'A'
+      material: PLAYER_HEAD
+      name: "&e玩家信息"
+      lore:
+        - "&7玩家: &f{player}"
+        - "&7时间: &f{time}"
+      # 自定义数据 - 可在代码中通过 section.getString("custom") 获取
+      custom: "这是自定义数据"
+      shiny: true
+      action:
+        left_click: |
+          tell '&a你的名字是: {player}' colored
+          actionbar '&e当前时间: {time}' colored
+
+# 分页UI配置示例
+pageable_ui:
+  layout:
+    - "#########"
+    - "#BBBBBBB#"
+    - "#BBBBBBB#"
+    - "#BBBBBBB#"
+    - "#BBBBBBB#"
+    - "#P#####N#"
+
+  # 上一页按钮配置
+  previous_page:
+    slot: 'P'
+    # 有上一页时的样式
+    has:
+      material: ARROW
+      name: "&a上一页"
+      lore:
+        - "&7点击查看上一页"
+    # 无上一页时的样式
+    normal:
+      material: GRAY_DYE
+      name: "&c已是第一页"
+      lore:
+        - "&7没有更多内容了"
+
+  # 下一页按钮配置
+  next_page:
+    slot: 'N'
+    has:
+      material: ARROW
+      name: "&a下一页"
+      lore:
+        - "&7点击查看下一页"
+    normal:
+      material: GRAY_DYE
+      name: "&c已是最后一页"
+      lore:
+        - "&7没有更多内容了"
+
+  # 边框装饰
+  button:
+    border:
+      slot: '#'
+      material: BLACK_STAINED_GLASS_PANE
+      name: " "
+
+# 动态数据UI示例
+dynamic_ui:
+  layout:
+    - "AAAAAAAAA"
+    - "ABBBBBBBA"
+    - "AAAAAAAAA"
+
+  button:
+    background:
+      slot: 'A'
+      material: GRAY_STAINED_GLASS_PANE
+      name: " "
+
+  # 动态图标配置 - 使用变量替换
+  player_status:
+    slot: 'B'
+    material: PLAYER_HEAD
+    name: "&e{player_name}"
+    lore:
+      - "&7等级: &f{level}"
+      - "&7经验: &f{exp}"
+      - "&7金币: &f{money}"
+    action:
+      left_click: "tell '&a你的等级是 {level}' colored"
+
+# XItemStack 高级配置示例
+advanced_item:
+  layout:
+    - "AAAAAAAAA"
+
+  button:
+    # 使用 XItemStack 的高级特性
+    custom_item:
+      slot: 'A'
+      # 基础配置
+      material: DIAMOND_SWORD
+      amount: 1
+      damage: 10
+      name: "&c&l传说之剑"
+      lore:
+        - "&7攻击力: &c+100"
+        - "&7耐久: &e{durability}"
+        - ""
+        - "&e{custom_desc}"
+      # 附魔
+      enchants:
+        - "DAMAGE_ALL:5"
+        - "FIRE_ASPECT:2"
+      # 物品标记
+      flags:
+        - "HIDE_ENCHANTS"
+        - "HIDE_ATTRIBUTES"
+      # 自定义模型数据
+      custom-model-data: 10001
+      # 皮革装备颜色 (RGB)
+      color: "255,0,0"
+      shiny: true
+      action:
+        left_click: "give diamond_sword 1 name:'{custom_desc}' colored"
+
+# 空物品配置 - 用于容错
+null_item:
+  material: BARRIER
+  name: "&c物品加载失败"
+  lore:
+    - "&7请联系管理员"
