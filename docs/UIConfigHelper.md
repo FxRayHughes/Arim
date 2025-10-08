@@ -46,8 +46,25 @@ UIConfigHelper.helper(player, file, "ui_root") { player ->
 | `getMaterial(path, default?)` | `XMaterial` | 获取材料，非法值返回默认值 |
 | `getConfigurationSection(path)` | `ConfigurationSection?` | 获取配置节 |
 | `getLayout()` | `List<String>` | 获取布局配置 |
+| `getIconSlot(sectionPath)` | `Char?` | 获取图标的槽位标识字符 |
 
 **路径规则：** 所有 `path` 参数均相对于 `rootPath`，自动拼接为 `rootPath.path`
+
+### 槽位交互规则方法（ClickEvent 扩展）
+
+| 方法 | 返回值 | 说明 |
+|-----|--------|------|
+| `ClickEvent.ruleConditionSlot(slotChar, condition, onFailed?)` | `Boolean` | 条件槽位：验证物品放入/取出条件 |
+| `ClickEvent.ruleLimitAmount(slotChar, maxAmount, onFailed?)` | `Boolean` | 限制槽位最大堆叠数量 |
+| `ClickEvent.ruleLockSlots(slotChars, reverse?)` | `Unit` | 锁定/解锁槽位交互 |
+| `Inventory.returnItems(slotChars, delete?)` | `Unit` | 返还槽位物品到玩家背包 |
+
+**参数说明：**
+- `slotChar`/`slotChars`: 槽位字符标识
+- `condition`: lambda `(放入?, 取出?) -> Boolean`
+- `onFailed`: ClickEvent 上下文的失败回调 lambda
+- `reverse`: true=仅指定槽位可交互，false=锁定指定槽位
+- `delete`: 是否删除UI中的物品
 
 ### UI 构建方法
 
@@ -149,6 +166,34 @@ onBuild { player, inventory ->
     val item = inventory.getSlotItem('B')             // 首个非空物品
     val items = inventory.getSlotItems('C')           // 所有非空物品
     val first = inventory.getSlotItemsFirst('D')      // 首个槽位物品（可能为空气）
+
+    // 返还物品
+    inventory.returnItems(listOf('B', 'C'))          // 返还指定槽位物品到玩家背包
+}
+```
+
+### 槽位交互规则方法
+
+用于控制槽位的物品放入/取出行为，作为 ClickEvent 的扩展方法调用：
+
+```kotlin
+onClick { event, element ->
+    // 规则：条件槽位 - 只允许钻石放入
+    event.ruleConditionSlot('I', { put, out ->
+        put == null || put.type == Material.DIAMOND
+    }) {
+        // onFailed 在 ClickEvent 上下文中执行
+        clicker.sendMessage("§c只能放入钻石!")
+        isCancelled = true
+    }
+
+    // 规则：限制堆叠数量
+    event.ruleLimitAmount('I', 16) {
+        clicker.sendMessage("§c最多只能放16个!")
+    }
+
+    // 规则：锁定槽位（禁止交互）
+    event.ruleLockSlots(listOf('A', 'B'), reverse = false)
 }
 ```
 
@@ -280,6 +325,38 @@ buildIconAction("custom_item") { section ->
     val customData = section.getString("custom")
     val extraValue = section.getInt("extra")
     // 使用自定义数据处理业务逻辑
+}
+```
+
+### 场景5：槽位交互规则
+
+```kotlin
+UIConfigHelper.helper(player, configFile, "craft_ui") {
+    player.openMenu<Chest>("工作台") {
+        initMenu()
+
+        onClick { event, _ ->
+            // 只允许原材料放入槽位 'I'
+            event.ruleConditionSlot('I', { put, _ ->
+                put == null || put.type in listOf(Material.DIAMOND, Material.GOLD_INGOT)
+            }) {
+                clicker.sendMessage("§c只能放入钻石或金锭!")
+            }
+
+            // 限制输入槽最多16个
+            event.ruleLimitAmount('I', 16) {
+                clicker.sendMessage("§c最多放16个!")
+            }
+
+            // 锁定结果槽（只能取出，不能放入）
+            event.ruleLockSlots(listOf('O'), reverse = false)
+        }
+
+        onClose {
+            // 返还输入槽物品并清空
+            it.inventory.returnItems(listOf('I'), delete = true)
+        }
+    }
 }
 ```
 

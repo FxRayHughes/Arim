@@ -23,6 +23,7 @@ import taboolib.module.ui.type.Chest
 import taboolib.module.ui.type.PageableChest
 import taboolib.platform.util.ItemBuilder
 import taboolib.platform.util.buildItem
+import taboolib.platform.util.giveItem
 import java.io.File
 
 /**
@@ -248,6 +249,15 @@ class UIConfigHelper(val configFile: File, val rootPath: String, val player: Pla
     }
 
     /**
+     * 获取图标槽位标识
+     * @param sectionPath 配置节路径
+     * @return 槽位标识字符
+     */
+    fun getIconSlot(sectionPath: String): Char? {
+        return getChar("$sectionPath.slot", null)
+    }
+
+    /**
      * 快捷创建翻页按钮
      * 自动读取配置中的 next_page 和 previous_page 节点
      * @param page 分页箱子实例
@@ -286,6 +296,76 @@ class UIConfigHelper(val configFile: File, val rootPath: String, val player: Pla
      */
     fun reload() {
         config.reload()
+    }
+
+    /**
+     * 返还指定槽位的物品
+     * @param slotChars 槽位字符列表
+     * @param delete 是否删除UI里的物品
+     */
+    fun Inventory.returnItems(slotChars: List<Char>, delete: Boolean = false) {
+        val slots = slotChars.flatMap { chest.getSlots(it) }
+        slots.forEach {
+            player.giveItem(getItem(it))
+            if (delete) {
+                setItem(it, null)
+            }
+        }
+    }
+
+    /**
+     * 规则：创建条件槽位 - 控制物品的放入和取出
+     * @param slotChar 槽位字符
+     * @param condition 条件判断 (放入物品?, 取出物品?) -> 是否允许
+     * @param onFailed 失败时执行的Kether脚本
+     */
+    fun ClickEvent.ruleConditionSlot(
+        slotChar: Char,
+        condition: (put: ItemStack?, out: ItemStack?) -> Boolean,
+        onFailed: ClickEvent.() -> Unit = {}
+    ): Boolean {
+        val rawSlots = chest.getSlots(slotChar)
+        for (rawSlot in rawSlots) {
+            val result = conditionSlot(rawSlot, condition) {
+                onFailed.invoke(this)
+            }
+            if (!result) return false
+        }
+        return true
+    }
+
+    /**
+     * 规则：限制槽位最大堆叠数量
+     * @param slotChar 槽位字符
+     * @param maxAmount 最大堆叠数量
+     * @param onFailed 失败时执行的Kether脚本
+     */
+    fun ClickEvent.ruleLimitAmount(
+        slotChar: Char,
+        maxAmount: Int,
+        onFailed: ClickEvent.() -> Unit = {}
+    ): Boolean {
+        val rawSlots = chest.getSlots(slotChar)
+        for (rawSlot in rawSlots) {
+            val result = amountCondition(rawSlot, maxAmount) {
+                onFailed.invoke(this)
+            }
+            if (!result) return false
+        }
+        return true
+    }
+
+    /**
+     * 规则：锁定槽位交互
+     * @param slotChars 槽位字符列表
+     * @param reverse 反向模式：true=仅这些槽位可交互，false=锁定这些槽位
+     */
+    fun ClickEvent.ruleLockSlots(
+        slotChars: List<Char>,
+        reverse: Boolean = false
+    ) {
+        val rawSlots = slotChars.flatMap { chest.getSlots(it) }
+        lockSlots(rawSlots, reverse)
     }
 
     /**
