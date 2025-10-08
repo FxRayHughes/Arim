@@ -4,7 +4,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 plugins {
     java
     `maven-publish`
-    id("io.izzel.taboolib") version "2.0.23"
+    id("io.izzel.taboolib") version "2.0.27"
     kotlin("jvm") version "1.8.22"
 }
 
@@ -12,10 +12,10 @@ taboolib {
     subproject = true
     env {
         // 安装模块
-        install(Basic, Bukkit, BukkitHook, BukkitNMSUtil, Kether)
+        install(Basic, Bukkit, BukkitHook, BukkitNMSUtil, Kether,BukkitUI)
     }
     version {
-        taboolib = "6.2.3"
+        taboolib = "6.2.3-1a8d7125"
         //coroutines = "1.10.1"
     }
 }
@@ -82,10 +82,6 @@ publishing {
             credentials {
                 username = project.findProperty("taboolibUsername")?.toString() ?: System.getenv("NEXUS_MAPLEX_USERNAME")
                 password = project.findProperty("taboolibPassword")?.toString() ?: System.getenv("NEXUS_MAPLEX_PASSWORD")
-
-                // 添加调试日志
-                println(">>>> Nexus Username: ${username}")
-                println(">>>> Nexus Password: ${password}")
             }
             authentication {
                 create<BasicAuthentication>("basic")
@@ -96,13 +92,7 @@ publishing {
     publications {
         create<MavenPublication>("maven") {
             from(components.findByName("java"))
-//            artifactId = "Arim"
-//            groupId = "top.maplex.arim"
             version = project.version.toString()
-            println("Publishing version $version")
-            println("Publishing artifactId $artifactId")
-            println("Publishing groupId $groupId")
-
         }
     }
 }
