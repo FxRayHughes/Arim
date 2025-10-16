@@ -132,17 +132,20 @@ class UIConfigHelper(val configFile: File, val rootPath: String, val player: Pla
         // 将 ConfigurationSection 转为 Map
         val itemMap = section.getValues(true).toMutableMap()
 
+        // 按键长度降序排序，从长到短替换（避免短占位符先被替换导致长占位符匹配失败）
+        val sortedPlaceholders = placeholders.entries.sortedByDescending { it.key.length }
+
         // 替换 material 字段的占位符
         val materialValue = itemMap["material"] as? String ?: "STONE"
-        val replacedMaterial = placeholders.entries.fold(materialValue) { acc, (key, value) ->
+        val replacedMaterial = sortedPlaceholders.fold(materialValue) { acc, (key, value) ->
             acc.replace(key, value)
         }
         itemMap["material"] = replacedMaterial
 
         // 使用 XItemStack.deserialize(Map, translator)
         val itemStack = XItemStack.deserialize(itemMap) {
-            // 处理其他字段的占位符（name, lore 等）
-            placeholders.entries.fold(it) { acc, (key, value) ->
+            // 处理其他字段的占位符（name, lore 等），从长到短替换
+            sortedPlaceholders.fold(it) { acc, (key, value) ->
                 acc.replace(key, value)
             }
         }
@@ -211,17 +214,20 @@ class UIConfigHelper(val configFile: File, val rootPath: String, val player: Pla
         // 将 ConfigurationSection 转为 Map
         val itemMap = section.getValues(true).toMutableMap()
 
+        // 按键长度降序排序，从长到短替换（避免短占位符先被替换导致长占位符匹配失败）
+        val sortedPlaceholders = placeholders.entries.sortedByDescending { it.key.length }
+
         // 替换 material 字段的占位符
         val materialValue = itemMap["material"] as? String ?: "STONE"
-        val replacedMaterial = placeholders.entries.fold(materialValue) { acc, (key, value) ->
+        val replacedMaterial = sortedPlaceholders.fold(materialValue) { acc, (key, value) ->
             acc.replace(key, value)
         }
         itemMap["material"] = replacedMaterial
 
         // 使用 XItemStack.deserialize(Map, translator)
         val itemStack = XItemStack.deserialize(itemMap) {
-            // 处理其他字段的占位符（name, lore 等）
-            placeholders.entries.fold(it) { acc, (key, value) ->
+            // 处理其他字段的占位符（name, lore 等），从长到短替换
+            sortedPlaceholders.fold(it) { acc, (key, value) ->
                 acc.replace(key, value)
             }
         }
