@@ -15,6 +15,10 @@
 
 ## 使用方法
 
+0. 最新版本
+
+![Sonatype Nexus (Releases)](https://img.shields.io/nexus/r/top.maplex.arim/Arim?server=https%3A%2F%2Fnexus.maplex.top&nexusVersion=3)
+
 1. 添加依赖
 
 ```kts

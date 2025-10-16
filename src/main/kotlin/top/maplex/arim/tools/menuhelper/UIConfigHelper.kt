@@ -9,8 +9,8 @@ import taboolib.common.io.newFile
 import taboolib.common.platform.function.adaptPlayer
 import taboolib.common.platform.function.getDataFolder
 import taboolib.library.configuration.ConfigurationSection
+import taboolib.library.xseries.XItemStack
 import taboolib.library.xseries.XMaterial
-import taboolib.library.xseries.getItemStack
 import taboolib.module.chat.colored
 import taboolib.module.configuration.Configuration
 import taboolib.module.configuration.Type
@@ -119,7 +119,7 @@ class UIConfigHelper(val configFile: File, val rootPath: String, val player: Pla
      * 构建物品栈 - XItemStack
      * XItemStack: https://taboolib.feishu.cn/wiki/SXCIwINmsiubTJkJJu1cfh2on5b
      * @param sectionPath 配置节路径
-     * @param placeholders 变量替换映射
+     * @param placeholders 变量替换映射（key 格式：$xxx）
      * @param customizer 自定义构建器
      */
     fun buildIcon(
@@ -128,18 +128,31 @@ class UIConfigHelper(val configFile: File, val rootPath: String, val player: Pla
         customizer: (ItemBuilder.(config: ConfigurationSection) -> Unit) = {}
     ): ItemStack {
         val section = getConfigurationSection(sectionPath) ?: return XMaterial.AIR.parseItem()!!
-        val itemStack = config.getItemStack("${rootPath}.${sectionPath}") {
-            if (placeholders.contains(it)) {
-                placeholders[it]!!
-            } else {
-                it
+
+        // 将 ConfigurationSection 转为 Map
+        val itemMap = section.getValues(true).toMutableMap()
+
+        // 替换 material 字段的占位符
+        val materialValue = itemMap["material"] as? String ?: "STONE"
+        val replacedMaterial = placeholders.entries.fold(materialValue) { acc, (key, value) ->
+            acc.replace(key, value)
+        }
+        itemMap["material"] = replacedMaterial
+
+        // 使用 XItemStack.deserialize(Map, translator)
+        val itemStack = XItemStack.deserialize(itemMap) {
+            // 处理其他字段的占位符（name, lore 等）
+            placeholders.entries.fold(it) { acc, (key, value) ->
+                acc.replace(key, value)
             }
-        } ?: return XMaterial.AIR.parseItem()!!
+        }
+
         return buildItem(itemStack) {
             if (section.getBoolean("shiny", false)) {
                 shiny()
             }
             customizer.invoke(this, section)
+            colored()
         }
     }
 
@@ -185,7 +198,7 @@ class UIConfigHelper(val configFile: File, val rootPath: String, val player: Pla
     /**
      * 在页面打开后更新图标
      * @param sectionPath 配置节路径
-     * @param placeholders 变量替换映射
+     * @param placeholders 变量替换映射（key 格式：$xxx）
      * @param customizer 自定义构建器，接收配置节用于动态调整物品属性
      */
     fun Inventory.updateIcon(
@@ -194,21 +207,36 @@ class UIConfigHelper(val configFile: File, val rootPath: String, val player: Pla
         customizer: (ItemBuilder.(config: ConfigurationSection) -> Unit) = {}
     ) {
         val section = getConfigurationSection(sectionPath) ?: return
-        val itemStack = config.getItemStack("${rootPath}.${sectionPath}") {
-            if (placeholders.contains(it)) {
-                placeholders[it]!!
-            } else {
-                it
+
+        // 将 ConfigurationSection 转为 Map
+        val itemMap = section.getValues(true).toMutableMap()
+
+        // 替换 material 字段的占位符
+        val materialValue = itemMap["material"] as? String ?: "STONE"
+        val replacedMaterial = placeholders.entries.fold(materialValue) { acc, (key, value) ->
+            acc.replace(key, value)
+        }
+        itemMap["material"] = replacedMaterial
+
+        // 使用 XItemStack.deserialize(Map, translator)
+        val itemStack = XItemStack.deserialize(itemMap) {
+            // 处理其他字段的占位符（name, lore 等）
+            placeholders.entries.fold(it) { acc, (key, value) ->
+                acc.replace(key, value)
             }
-        } ?: return
+        }
+
         val icon = buildItem(itemStack) {
             if (section.getBoolean("shiny", false)) {
                 shiny()
             }
             customizer.invoke(this, section)
+            colored()
         }
         val slot = getChar("$sectionPath.slot", 'O')!!
-        setItem(chest.getFirstSlot(slot), icon)
+        chest.getSlots(slot).forEach {
+            setItem(it, icon)
+        }
     }
 
     /**
