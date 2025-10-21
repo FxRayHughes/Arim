@@ -1,6 +1,5 @@
 package top.maplex.arim.tools.menuhelper
 
-import getProperty
 import org.bukkit.entity.Player
 import org.bukkit.event.inventory.ClickType
 import org.bukkit.inventory.Inventory
@@ -9,6 +8,7 @@ import taboolib.common.io.newFile
 import taboolib.common.platform.function.adaptPlayer
 import taboolib.common.platform.function.getDataFolder
 import taboolib.library.configuration.ConfigurationSection
+import taboolib.library.reflex.Reflex.Companion.getProperty
 import taboolib.library.xseries.XItemStack
 import taboolib.library.xseries.XMaterial
 import taboolib.module.chat.colored
@@ -44,20 +44,17 @@ class UIConfigHelper(val configFile: File, val rootPath: String, val player: Pla
      * 获取字符串配置
      * @param path 配置路径（相对于rootPath）
      * @param default 默认值
-     * @param placeholders 变量替换映射
+     * @param placeholders 变量替换映射（支持Any类型，List类型会自动取第一个值）
      */
     fun getString(
-        path: String, default: String? = null, placeholders: Map<String, String> = emptyMap()
+        path: String, default: String? = null, placeholders: Map<String, Any> = emptyMap()
     ): String? {
         val fullPath = "$rootPath.$path"
-        var value = config.getString(fullPath) ?: default ?: return null
+        val value = config.getString(fullPath) ?: default ?: return null
 
-        // 执行变量替换
-        placeholders.forEach { (key, replacement) ->
-            value = value.replace("{$key}", replacement)
-        }
-
-        return value.colored()
+        // 执行变量替换（List类型取第一个值）
+        val expanded = expandString(value, placeholders)
+        return expanded.firstOrNull()?.colored()
     }
 
     /**
@@ -71,12 +68,28 @@ class UIConfigHelper(val configFile: File, val rootPath: String, val player: Pla
     }
 
     /**
-     * 获取字符串列表配置
+     * 获取字符串列表配置（支持占位符展开）
+     * @param path 配置路径（相对于rootPath）
+     * @param default 默认值
+     * @param placeholders 变量替换映射（支持Any类型，List类型会自动展开为多行）
      */
-    fun getStringList(path: String, default: List<String> = emptyList()): List<String> {
+    fun getStringList(
+        path: String,
+        default: List<String> = emptyList(),
+        placeholders: Map<String, Any> = emptyMap()
+    ): List<String> {
         val fullPath = "$rootPath.$path"
         val list = config.getStringList(fullPath).takeIf { it.isNotEmpty() } ?: default
-        return list.map { it.colored() }
+
+        // 如果没有占位符，直接返回着色后的列表
+        if (placeholders.isEmpty()) {
+            return list.map { it.colored() }
+        }
+
+        // 展开每一行中的占位符，然后合并所有结果
+        return list.flatMap { line ->
+            expandString(line, placeholders)
+        }.map { it.colored() }
     }
 
     /**
@@ -119,12 +132,12 @@ class UIConfigHelper(val configFile: File, val rootPath: String, val player: Pla
      * 构建物品栈 - XItemStack
      * XItemStack: https://taboolib.feishu.cn/wiki/SXCIwINmsiubTJkJJu1cfh2on5b
      * @param sectionPath 配置节路径
-     * @param placeholders 变量替换映射（key 格式：$xxx）
+     * @param placeholders 变量替换映射（支持Any类型，List类型在lore中会展开，在其他字段取第一个值）
      * @param customizer 自定义构建器
      */
     fun buildIcon(
         sectionPath: String,
-        placeholders: Map<String, String> = emptyMap(),
+        placeholders: Map<String, Any> = emptyMap(),
         customizer: (ItemBuilder.(config: ConfigurationSection) -> Unit) = {}
     ): ItemStack {
         val section = getConfigurationSection(sectionPath) ?: return XMaterial.AIR.parseItem()!!
@@ -132,8 +145,21 @@ class UIConfigHelper(val configFile: File, val rootPath: String, val player: Pla
         // 将 ConfigurationSection 转为 Map
         val itemMap = section.getValues(true).toMutableMap()
 
+        // 特殊处理 lore 字段：支持List类型占位符展开
+        val loreValue = itemMap["lore"]
+        if (loreValue is List<*>) {
+            val loreList = loreValue.mapNotNull { it as? String }
+            val expandedLore = loreList.flatMap { line ->
+                expandString(line, placeholders)
+            }
+            itemMap["lore"] = expandedLore
+        }
+
+        // 扁平化占位符（List类型取第一个值）用于非lore字段
+        val flatPlaceholders = flattenPlaceholders(placeholders)
+
         // 按键长度降序排序，从长到短替换（避免短占位符先被替换导致长占位符匹配失败）
-        val sortedPlaceholders = placeholders.entries.sortedByDescending { it.key.length }
+        val sortedPlaceholders = flatPlaceholders.entries.sortedByDescending { it.key.length }
 
         // 替换 material 字段的占位符
         val materialValue = itemMap["material"] as? String ?: "STONE"
@@ -144,7 +170,7 @@ class UIConfigHelper(val configFile: File, val rootPath: String, val player: Pla
 
         // 使用 XItemStack.deserialize(Map, translator)
         val itemStack = XItemStack.deserialize(itemMap) {
-            // 处理其他字段的占位符（name, lore 等），从长到短替换
+            // 处理其他字段的占位符（name 等），从长到短替换
             sortedPlaceholders.fold(it) { acc, (key, value) ->
                 acc.replace(key, value)
             }
@@ -162,12 +188,12 @@ class UIConfigHelper(val configFile: File, val rootPath: String, val player: Pla
     /**
      * 构建图标并绑定点击事件
      * @param sectionPath 配置节路径（相对于rootPath）
-     * @param placeholders 变量替换映射
+     * @param placeholders 变量替换映射（支持Any类型，List类型会自动取第一个值）
      * @param clickEvent 点击事件回调，接收配置节作为参数
      */
     fun Chest.buildIconAction(
         sectionPath: String,
-        placeholders: Map<String, String> = emptyMap(),
+        placeholders: Map<String, Any> = emptyMap(),
         clickEvent: ClickEvent.(root: ConfigurationSection) -> Unit = {}
     ) {
         set(getChar("$sectionPath.slot", 'O')!!, buildIcon(sectionPath, placeholders)) {
@@ -181,9 +207,9 @@ class UIConfigHelper(val configFile: File, val rootPath: String, val player: Pla
      * 运行图标的Kether脚本回调
      * @param clickType 点击类型（左键/右键/中键等）
      * @param sectionPath 配置节路径
-     * @param placeholders 变量替换映射，会注入到Kether脚本上下文
+     * @param placeholders 变量替换映射，会注入到Kether脚本上下文（支持Any类型）
      */
-    fun runIcon(clickType: ClickType, sectionPath: String, placeholders: Map<String, String> = emptyMap()) {
+    fun runIcon(clickType: ClickType, sectionPath: String, placeholders: Map<String, Any> = emptyMap()) {
         val section = getConfigurationSection(sectionPath) ?: return
         val action = section.getConfigurationSection("action")
         val script = when (clickType) {
@@ -194,19 +220,21 @@ class UIConfigHelper(val configFile: File, val rootPath: String, val player: Pla
             ClickType.MIDDLE -> action?.getString("middle_click")
             else -> action?.getString("other_click")
         } ?: return
-        val build = ScriptOptions.builder().sender(sender = adaptPlayer(player)).vars(placeholders).build()
+        // 扁平化占位符用于Kether脚本上下文
+        val flatPlaceholders = flattenPlaceholders(placeholders)
+        val build = ScriptOptions.builder().sender(sender = adaptPlayer(player)).vars(flatPlaceholders).build()
         KetherShell.eval(script, build)
     }
 
     /**
      * 在页面打开后更新图标
      * @param sectionPath 配置节路径
-     * @param placeholders 变量替换映射（key 格式：$xxx）
+     * @param placeholders 变量替换映射（支持Any类型，List类型在lore中会展开，在其他字段取第一个值）
      * @param customizer 自定义构建器，接收配置节用于动态调整物品属性
      */
     fun Inventory.updateIcon(
         sectionPath: String,
-        placeholders: Map<String, String> = emptyMap(),
+        placeholders: Map<String, Any> = emptyMap(),
         customizer: (ItemBuilder.(config: ConfigurationSection) -> Unit) = {}
     ) {
         val section = getConfigurationSection(sectionPath) ?: return
@@ -214,8 +242,21 @@ class UIConfigHelper(val configFile: File, val rootPath: String, val player: Pla
         // 将 ConfigurationSection 转为 Map
         val itemMap = section.getValues(true).toMutableMap()
 
+        // 特殊处理 lore 字段：支持List类型占位符展开
+        val loreValue = itemMap["lore"]
+        if (loreValue is List<*>) {
+            val loreList = loreValue.mapNotNull { it as? String }
+            val expandedLore = loreList.flatMap { line ->
+                expandString(line, placeholders)
+            }
+            itemMap["lore"] = expandedLore
+        }
+
+        // 扁平化占位符（List类型取第一个值）用于非lore字段
+        val flatPlaceholders = flattenPlaceholders(placeholders)
+
         // 按键长度降序排序，从长到短替换（避免短占位符先被替换导致长占位符匹配失败）
-        val sortedPlaceholders = placeholders.entries.sortedByDescending { it.key.length }
+        val sortedPlaceholders = flatPlaceholders.entries.sortedByDescending { it.key.length }
 
         // 替换 material 字段的占位符
         val materialValue = itemMap["material"] as? String ?: "STONE"
@@ -226,7 +267,7 @@ class UIConfigHelper(val configFile: File, val rootPath: String, val player: Pla
 
         // 使用 XItemStack.deserialize(Map, translator)
         val itemStack = XItemStack.deserialize(itemMap) {
-            // 处理其他字段的占位符（name, lore 等），从长到短替换
+            // 处理其他字段的占位符（name 等），从长到短替换
             sortedPlaceholders.fold(it) { acc, (key, value) ->
                 acc.replace(key, value)
             }
@@ -300,13 +341,13 @@ class UIConfigHelper(val configFile: File, val rootPath: String, val player: Pla
         // 下一页按钮
         page.setNextPage(page.getFirstSlot(getChar("next_page.slot", 'N')!!)) { _, hasNextPage ->
             val sectionPath = if (hasNextPage) "next_page.has" else "next_page.normal"
-            buildIcon(sectionPath, mapOf("current_page" to "${page.page}", "" to "${page.getProperty<Int>("maxPage")}"))
+            buildIcon(sectionPath, mapOf("current_page" to "${page.page}", "total_page" to "${page.getProperty<Int>("maxPage")}"))
         }
 
         // 上一页按钮
         page.setPreviousPage(page.getFirstSlot(getChar("previous_page.slot", 'P')!!)) { _, hasPreviousPage ->
             val sectionPath = if (hasPreviousPage) "previous_page.has" else "previous_page.normal"
-            buildIcon(sectionPath, mapOf("current_page" to "${page.page}", "" to "${page.getProperty<Int>("maxPage")}"))
+            buildIcon(sectionPath, mapOf("current_page" to "${page.page}", "total_page" to "${page.getProperty<Int>("maxPage")}"))
         }
     }
 
@@ -400,6 +441,72 @@ class UIConfigHelper(val configFile: File, val rootPath: String, val player: Pla
     ) {
         val rawSlots = slotChars.flatMap { chest.getSlots(it) }
         lockSlots(rawSlots, reverse)
+    }
+
+    /**
+     * 展开字符串中的占位符，支持List类型自动展开为多行
+     * 占位符格式：<key>
+     * @param template 字符串模板
+     * @param placeholders 占位符映射（值可以是String或List）
+     * @return 展开后的字符串列表
+     */
+    private fun expandString(template: String, placeholders: Map<String, Any>): List<String> {
+        // 分离List类型和非List类型的占位符
+        val listPlaceholders = mutableMapOf<String, List<String>>()
+        val stringPlaceholders = mutableMapOf<String, String>()
+
+        placeholders.forEach { (key, value) ->
+            when (value) {
+                is List<*> -> listPlaceholders[key] = value.map { it.toString() }
+                else -> stringPlaceholders[key] = value.toString()
+            }
+        }
+
+        // 先替换非List类型的占位符（按键长度降序，避免短键影响长键）
+        var current = template
+        stringPlaceholders.entries.sortedByDescending { it.key.length }.forEach { (key, replacement) ->
+            current = current.replace("<$key>", replacement)
+        }
+
+        // 如果没有List类型的占位符，直接返回
+        if (listPlaceholders.isEmpty()) {
+            return listOf(current)
+        }
+
+        // 展开List类型的占位符（按键长度降序）
+        val results = mutableListOf(current)
+        listPlaceholders.entries.sortedByDescending { it.key.length }.forEach { (key, values) ->
+            val newResults = mutableListOf<String>()
+            results.forEach { str ->
+                if (str.contains("<$key>")) {
+                    // 如果包含这个占位符，展开为多行
+                    values.forEach { value ->
+                        newResults.add(str.replace("<$key>", value))
+                    }
+                } else {
+                    // 如果不包含这个占位符，保持原样
+                    newResults.add(str)
+                }
+            }
+            results.clear()
+            results.addAll(newResults)
+        }
+
+        return results
+    }
+
+    /**
+     * 将占位符扁平化为字符串映射（List类型取第一个值或转为toString）
+     * @param placeholders 占位符映射
+     * @return 扁平化后的字符串映射
+     */
+    private fun flattenPlaceholders(placeholders: Map<String, Any>): Map<String, String> {
+        return placeholders.mapValues { (_, value) ->
+            when (value) {
+                is List<*> -> value.firstOrNull()?.toString() ?: ""
+                else -> value.toString()
+            }
+        }
     }
 
     /**
