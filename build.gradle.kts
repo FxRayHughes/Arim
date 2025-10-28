@@ -57,6 +57,7 @@ dependencies {
     compileOnly("ink.ptms:Zaphkiel:2.0.14")
     compileOnly("net.momirealms:craft-engine-core:0.0.22")
     compileOnly("net.momirealms:craft-engine-bukkit:0.0.22")
+    compileOnly("com.google.code.gson:gson:2.8.8")
 }
 
 tasks.withType<JavaCompile> {
