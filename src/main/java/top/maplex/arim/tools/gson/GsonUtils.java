@@ -52,8 +52,7 @@ public class GsonUtils {
                     break;
                 }
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (Exception ignored) {
         }
         return gson;
     }

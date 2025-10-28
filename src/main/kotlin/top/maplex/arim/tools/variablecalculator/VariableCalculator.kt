@@ -68,7 +68,7 @@ class VariableCalculator {
                     numBits = 0
                 }
 
-                '+', '*', '/', '-', '%' -> {
+                '+', '*', '/', '-', '%', '^' -> {
                     if (canNegative) {
                         if (c == '-') {
                             nodes.push(ValueNode(0.0))
@@ -136,6 +136,7 @@ class VariableCalculator {
         '*' -> MultiplicationNode(a1, a2)
         '/' -> DivisionNode(a1, a2)
         '%' -> ModulusNode(a1, a2)
+        '^' -> PowerNode(a1, a2)
         else -> throw IllegalStateException("非法操作符: $op")
     }
 
@@ -144,6 +145,7 @@ class VariableCalculator {
         '(' -> 1
         '+', '-' -> 2
         '*', '/', '%' -> 3
+        '^' -> 4
         else -> throw IllegalStateException("非法操作符: $op")
     }
 
